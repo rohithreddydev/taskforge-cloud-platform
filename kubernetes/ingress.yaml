@@ -1,0 +1,107 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-manager-ingress
+  namespace: task-manager
+  annotations:
+    # AWS Load Balancer Controller
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:xxx:certificate/xxx
+    
+    # Health checks
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    
+    # Security
+    alb.ingress.kubernetes.io/inbound-cidrs: 0.0.0.0/0
+    alb.ingress.kubernetes.io/security-groups: sg-xxx
+    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:us-east-1:xxx:regional/webacl/task-manager/xxx
+    
+    # Routing
+    alb.ingress.kubernetes.io/group.name: task-manager
+    alb.ingress.kubernetes.io/group.order: '1'
+    
+    # Timeouts
+    alb.ingress.kubernetes.io/keepalive-timeout: '60'
+    alb.ingress.kubernetes.io/idle-timeout: '60'
+    
+    # Logging
+    alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=task-manager-logs,access_logs.s3.prefix=alb
+    
+    # CORS
+    alb.ingress.kubernetes.io/cors-allow-origin: 'https://app.task-manager.com'
+    alb.ingress.kubernetes.io/cors-allow-methods: 'GET, POST, PUT, DELETE, OPTIONS'
+    alb.ingress.kubernetes.io/cors-allow-headers: 'Content-Type, Authorization'
+    alb.ingress.kubernetes.io/cors-expose-headers: 'X-Request-ID'
+    alb.ingress.kubernetes.io/cors-max-age: '3600'
+    
+    # Rate limiting
+    alb.ingress.kubernetes.io/enable-waf: 'true'
+    alb.ingress.kubernetes.io/enable-wafv2: 'true'
+spec:
+  rules:
+  - host: app.task-manager.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: task-manager-frontend
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: task-manager-backend
+            port:
+              number: 80
+  - host: api.task-manager.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: task-manager-backend
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-manager-ingress-staging
+  namespace: task-manager-staging
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/group.name: task-manager-staging
+spec:
+  rules:
+  - host: staging.task-manager.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: task-manager-frontend
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: task-manager-backend
+            port:
+              number: 80

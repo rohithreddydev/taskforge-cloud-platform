@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: task-manager-backend-pdb
+  namespace: task-manager
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: task-manager-backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: task-manager-frontend-pdb
+  namespace: task-manager
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: task-manager-frontend

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: task-manager
+  labels:
+    name: task-manager
+    environment: production
+    app: task-manager
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: task-manager-staging
+  labels:
+    name: task-manager-staging
+    environment: staging
+    app: task-manager

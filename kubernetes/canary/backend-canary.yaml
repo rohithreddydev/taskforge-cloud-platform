@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-manager-backend-canary
+  namespace: task-manager
+  labels:
+    app: task-manager-backend
+    tier: backend
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-manager-backend
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: task-manager-backend
+        tier: backend
+        version: canary
+    spec:
+      containers:
+      - name: backend
+        image: <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/task-manager-backend:canary
+        ports:
+        - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: task-manager-config
+        - secretRef:
+            name: task-manager-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 5000
+          initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-manager-backend-canary
+  namespace: task-manager
+  labels:
+    app: task-manager-backend
+    version: canary
+spec:
+  ports:
+  - port: 80
+    targetPort: 5000
+  selector:
+    app: task-manager-backend
+    version: canary
