@@ -9,14 +9,16 @@ from flask import request, jsonify, g
 from sqlalchemy import text
 from models import db, Task, User
 
+
 def get_utc_now():
     """Helper function to get current UTC time (handles deprecation)"""
-    if hasattr(datetime, 'UTC'):
+    if hasattr(datetime, "UTC"):
         # Python 3.11+
         return datetime.datetime.now(datetime.UTC)
     else:
         # Older Python versions
         return datetime.datetime.utcnow()
+
 
 def register_routes(app):
     """Register all routes with the Flask app"""
