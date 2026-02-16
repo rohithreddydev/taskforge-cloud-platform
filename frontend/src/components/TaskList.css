@@ -1,0 +1,7 @@
+/* TaskList styles */
+.task-list .task-card.completed {
+  opacity: 0.85;
+}
+.task-actions {
+  flex-shrink: 0;
+}
