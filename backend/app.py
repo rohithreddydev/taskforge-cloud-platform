@@ -124,7 +124,6 @@ def setup_logging(app):
 
 def init_redis(app):
     """Initialize Redis client"""
-    global redis_client
     try:
         app.redis_client = redis.from_url(app.config['REDIS_URL'], decode_responses=True)
         app.logger.info("Redis connected successfully")
