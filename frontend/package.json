@@ -5,29 +5,25 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
     "axios": "^1.6.2",
-    "react-router-dom": "^6.20.1",
     "bootstrap": "^5.3.2",
     "react-bootstrap": "^2.10.0",
     "react-toastify": "^9.1.3",
-    "react-icons": "^4.12.0",
-    "@testing-library/react": "^14.1.2",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/user-event": "^14.5.1",
-    "web-vitals": "^3.5.0"
+    "react-icons": "^4.12.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\" --watchAll=false",
+    "test:coverage": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\" --watchAll=false --coverage --collectCoverageFrom='src/**/*.{js,jsx}' --coveragePathIgnorePatterns='src/index.js'",
     "eject": "react-scripts eject",
-    "lint": "eslint src/**/*.{js,jsx}",
+    "lint": "eslint src/ --ext .js,.jsx --ignore-pattern node_modules/ --ignore-pattern build/",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\""
   },
   "eslintConfig": {
     "extends": [
-      "react-app",
-      "react-app/jest"
+      "react-app"
     ]
   },
   "browserslist": {
@@ -43,10 +39,11 @@
     ]
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/user-event": "^14.5.1",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "prettier": "^3.1.0"
-  },
-  "proxy": "http://localhost:5000"
+  }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Navbar, Nav, Alert, Spinner } from 'react-bootstrap';
+import { Container, Navbar, Alert, Spinner } from 'react-bootstrap';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -7,7 +7,6 @@ import './App.css';
 import TaskList from './components/TaskList';
 import TaskForm from './components/TaskForm';
 import TaskStats from './components/TaskStats';
-import TaskFilters from './components/TaskFilters';
 import api from './services/api';
 
 function App() {
@@ -15,22 +14,17 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
-  const [filters, setFilters] = useState({
-    completed: '',
-    priority: '',
-    search: ''
-  });
   const [stats, setStats] = useState(null);
 
-  // Fetch tasks on component mount and when filters change
+  // Fetch tasks on component mount
   useEffect(() => {
     fetchTasks();
-  }, [filters]);
+  }, []);
 
   // Fetch statistics periodically
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 30000); // Update every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -39,13 +33,7 @@ function App() {
       setLoading(true);
       setError(null);
       
-      // Build query parameters
-      const params = {};
-      if (filters.completed) params.completed = filters.completed;
-      if (filters.priority) params.priority = filters.priority;
-      if (filters.search) params.search = filters.search;
-      
-      const response = await api.get('/tasks', { params });
+      const response = await api.get('/tasks');
       setTasks(response.data);
     } catch (err) {
       setError('Failed to fetch tasks. Please try again.');
@@ -58,9 +46,14 @@ function App() {
   const fetchStats = async () => {
     try {
       const response = await api.get('/stats');
-      setStats(response.data);
+      if (response && response.data) {
+        setStats(response.data);
+      }
     } catch (err) {
-      console.error('Failed to fetch stats:', err);
+      // Only log in development, don't show to user
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Stats fetch failed');
+      }
     }
   };
 
@@ -68,7 +61,7 @@ function App() {
     try {
       const response = await api.post('/tasks', taskData);
       setTasks([response.data, ...tasks]);
-      fetchStats(); // Update stats
+      fetchStats();
       toast.success('Task created successfully!');
       return true;
     } catch (err) {
@@ -81,7 +74,7 @@ function App() {
     try {
       const response = await api.put(`/tasks/${id}`, taskData);
       setTasks(tasks.map(task => task.id === id ? response.data : task));
-      fetchStats(); // Update stats
+      fetchStats();
       toast.success('Task updated successfully!');
       setEditingTask(null);
       return true;
@@ -97,7 +90,7 @@ function App() {
     try {
       await api.delete(`/tasks/${id}`);
       setTasks(tasks.filter(task => task.id !== id));
-      fetchStats(); // Update stats
+      fetchStats();
       toast.success('Task deleted successfully!');
     } catch (err) {
       toast.error('Failed to delete task: ' + err.message);
@@ -108,33 +101,13 @@ function App() {
     await updateTask(task.id, { ...task, completed: !task.completed });
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters({ ...filters, ...newFilters });
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      completed: '',
-      priority: '',
-      search: ''
-    });
-  };
-
   return (
     <div className="App">
       <Navbar bg="primary" variant="dark" expand="lg">
         <Container>
           <Navbar.Brand href="/">
-            <i className="bi bi-check2-square"></i> Task Manager
+            Task Manager
           </Navbar.Brand>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="ms-auto">
-              <Nav.Link href="#tasks">Tasks</Nav.Link>
-              <Nav.Link href="#stats">Statistics</Nav.Link>
-              <Nav.Link href="#about">About</Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
         </Container>
       </Navbar>
 
@@ -161,12 +134,6 @@ function App() {
           </div>
           
           <div className="col-md-8">
-            <TaskFilters 
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onClearFilters={clearFilters}
-            />
-            
             {loading ? (
               <div className="text-center mt-5">
                 <Spinner animation="border" variant="primary" />
@@ -186,7 +153,7 @@ function App() {
 
       <footer className="bg-light text-center text-muted py-3 mt-5">
         <Container>
-          <small>Task Manager App &copy; 2025 | Built with React & Flask</small>
+          <small>Task Manager App © 2026</small>
         </Container>
       </footer>
 

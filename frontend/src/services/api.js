@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+// Get API URL from environment or use default
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -21,7 +24,7 @@ api.interceptors.request.use(
     
     // Log requests in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`, config);
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, config);
     }
     
     return config;
@@ -49,7 +52,6 @@ api.interceptors.response.use(
       // Handle specific status codes
       switch (error.response.status) {
         case 401:
-          // Unauthorized - redirect to login
           console.log('Unauthorized access');
           break;
         case 403:

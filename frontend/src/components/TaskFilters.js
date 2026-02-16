@@ -1,71 +1,102 @@
 import React from 'react';
-import { Form, Row, Col, Button } from 'react-bootstrap';
+import { Card, Button, Badge, Form } from 'react-bootstrap';
+import { FaEdit, FaTrash, FaFlag } from 'react-icons/fa';
+import './TaskList.css';
 
-const TaskFilters = ({ filters, onFilterChange, onClearFilters }) => {
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    onFilterChange({ [name]: value });
+const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
+  const getPriorityBadge = (priority) => {
+    const priorityMap = {
+      1: { variant: 'success', label: 'Low' },
+      2: { variant: 'warning', label: 'Medium' },
+      3: { variant: 'danger', label: 'High' }
+    };
+    
+    const { variant, label } = priorityMap[priority] || priorityMap[1];
+    return <Badge bg={variant}><FaFlag /> {label}</Badge>;
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No due date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  if (tasks.length === 0) {
+    return (
+      <Card className="text-center p-5">
+        <Card.Body>
+          <Card.Title>No Tasks Found</Card.Title>
+          <Card.Text>
+            Create your first task using the form on the left!
+          </Card.Text>
+        </Card.Body>
+      </Card>
+    );
+  }
+
   return (
-    <div className="filters-section mb-3">
-      <Row>
-        <Col md={4}>
-          <Form.Group controlId="filterSearch">
-            <Form.Label>Search</Form.Label>
-            <Form.Control
-              type="text"
-              name="search"
-              value={filters.search}
-              onChange={handleChange}
-              placeholder="Search tasks..."
-            />
-          </Form.Group>
-        </Col>
-        
-        <Col md={3}>
-          <Form.Group controlId="filterCompleted">
-            <Form.Label>Status</Form.Label>
-            <Form.Select
-              name="completed"
-              value={filters.completed}
-              onChange={handleChange}
-            >
-              <option value="">All</option>
-              <option value="true">Completed</option>
-              <option value="false">Pending</option>
-            </Form.Select>
-          </Form.Group>
-        </Col>
-        
-        <Col md={3}>
-          <Form.Group controlId="filterPriority">
-            <Form.Label>Priority</Form.Label>
-            <Form.Select
-              name="priority"
-              value={filters.priority}
-              onChange={handleChange}
-            >
-              <option value="">All</option>
-              <option value="1">Low</option>
-              <option value="2">Medium</option>
-              <option value="3">High</option>
-            </Form.Select>
-          </Form.Group>
-        </Col>
-        
-        <Col md={2} className="d-flex align-items-end">
-          <Button 
-            variant="outline-secondary" 
-            onClick={onClearFilters}
-            className="w-100"
-          >
-            Clear Filters
-          </Button>
-        </Col>
-      </Row>
+    <div className="task-list">
+      <h3 className="mb-3">
+        Tasks ({tasks.length})
+      </h3>
+      
+      {tasks.map(task => (
+        <Card 
+          key={task.id} 
+          className={`mb-3 task-card ${task.completed ? 'completed' : ''}`}
+        >
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-start">
+              <div className="d-flex align-items-center">
+                <Form.Check 
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={() => onToggleComplete(task)}
+                  className="me-3"
+                />
+                <div>
+                  <h5 className={task.completed ? 'text-muted text-decoration-line-through' : ''}>
+                    {task.title}
+                  </h5>
+                  {task.description && (
+                    <p className="text-muted mb-2">{task.description}</p>
+                  )}
+                  <div className="d-flex gap-2">
+                    {getPriorityBadge(task.priority)}
+                    <Badge bg="info">
+                      Due: {formatDate(task.due_date)}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="task-actions">
+                <Button 
+                  variant="outline-warning" 
+                  size="sm"
+                  onClick={() => onEdit(task)}
+                  className="me-2"
+                >
+                  <FaEdit />
+                </Button>
+                <Button 
+                  variant="outline-danger" 
+                  size="sm"
+                  onClick={() => onDelete(task.id)}
+                >
+                  <FaTrash />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="mt-2 small text-muted">
+              Created: {new Date(task.created_at).toLocaleString()}
+            </div>
+          </Card.Body>
+        </Card>
+      ))}
     </div>
   );
 };
 
-export default TaskFilters;
+export default TaskList;

@@ -1,7 +1,24 @@
-/* TaskList styles */
-.task-list .task-card.completed {
-  opacity: 0.85;
+.task-card {
+  transition: all 0.3s ease;
 }
+
+.task-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.task-card.completed {
+  opacity: 0.8;
+  background-color: #f8f9fa;
+}
+
 .task-actions {
-  flex-shrink: 0;
+  display: flex;
+  gap: 5px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }

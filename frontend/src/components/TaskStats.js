@@ -2,6 +2,7 @@ import React from 'react';
 import { Row, Col, Card, ProgressBar } from 'react-bootstrap';
 
 const TaskStats = ({ stats }) => {
+  // Provide default values if stats is undefined
   const {
     total_tasks = 0,
     completed_tasks = 0,
@@ -9,7 +10,7 @@ const TaskStats = ({ stats }) => {
     completion_rate = 0,
     priority_breakdown = {},
     tasks_created_today = 0
-  } = stats;
+  } = stats || {};
 
   return (
     <Row className="mb-4">

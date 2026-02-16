@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Button, Badge, Form } from 'react-bootstrap';
-import { FaEdit, FaTrash, FaClock, FaFlag } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFlag } from 'react-icons/fa';
 import './TaskList.css';
 
 const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
@@ -53,6 +53,7 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   checked={task.completed}
                   onChange={() => onToggleComplete(task)}
                   className="me-3"
+                  aria-label={`Mark task "${task.title}" as ${task.completed ? 'incomplete' : 'complete'}`}
                 />
                 <div>
                   <h5 className={task.completed ? 'text-muted text-decoration-line-through' : ''}>
@@ -64,7 +65,7 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   <div className="d-flex gap-2">
                     {getPriorityBadge(task.priority)}
                     <Badge bg="info">
-                      <FaClock /> {formatDate(task.due_date)}
+                      Due: {formatDate(task.due_date)}
                     </Badge>
                   </div>
                 </div>
@@ -76,6 +77,7 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   size="sm"
                   onClick={() => onEdit(task)}
                   className="me-2"
+                  aria-label={`Edit task: ${task.title}`}
                 >
                   <FaEdit />
                 </Button>
@@ -83,6 +85,7 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   variant="outline-danger" 
                   size="sm"
                   onClick={() => onDelete(task.id)}
+                  aria-label={`Delete task: ${task.title}`}
                 >
                   <FaTrash />
                 </Button>

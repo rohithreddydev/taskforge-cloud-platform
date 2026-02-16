@@ -1,4 +1,18 @@
-/* App styles */
 .App {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1;
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+footer {
+  margin-top: auto;
 }
