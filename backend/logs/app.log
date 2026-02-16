@@ -1,0 +1,26 @@
+2026-02-16 11:19:19,242 - app - INFO - Application starting up...
+2026-02-16 11:19:19,243 - app - INFO - Environment: production
+2026-02-16 11:19:19,243 - app - INFO - Debug mode: False
+2026-02-16 11:19:19,247 - app - INFO - Creating database tables...
+2026-02-16 11:20:55,252 - app - INFO - Application starting up...
+2026-02-16 11:20:55,252 - app - INFO - Environment: production
+2026-02-16 11:20:55,253 - app - INFO - Debug mode: False
+2026-02-16 11:20:55,253 - app - INFO - Redis connected successfully
+2026-02-16 11:20:55,254 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 11:20:55,289 - app - INFO - Database tables created/verified successfully
+2026-02-16 11:22:06,607 - app - INFO - Application starting up...
+2026-02-16 11:22:06,608 - app - INFO - Environment: production
+2026-02-16 11:22:06,608 - app - INFO - Debug mode: False
+2026-02-16 11:22:06,608 - app - INFO - Redis connected successfully
+2026-02-16 11:22:06,609 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 11:22:06,627 - app - INFO - Database tables created/verified successfully
+2026-02-16 11:22:47,206 - app - WARNING - 404 error: /
+2026-02-16 11:22:47,304 - app - WARNING - 404 error: /favicon.ico
+2026-02-16 11:23:00,846 - app - ERROR - Database health check failed: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+2026-02-16 11:23:00,848 - app - ERROR - Redis health check failed: Error 61 connecting to localhost:6379. Connection refused.
+2026-02-16 11:30:50,720 - app - INFO - Application starting up...
+2026-02-16 11:30:50,721 - app - INFO - Environment: production
+2026-02-16 11:30:50,721 - app - INFO - Debug mode: False
+2026-02-16 11:30:50,721 - app - INFO - Redis connected successfully
+2026-02-16 11:30:50,722 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 11:30:50,741 - app - INFO - Database tables created/verified successfully
