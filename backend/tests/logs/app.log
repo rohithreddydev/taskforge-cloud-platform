@@ -1,0 +1,21 @@
+2026-02-16 14:55:05,324 - app - INFO - Creating database tables...
+2026-02-16 14:55:05,325 - app - INFO - Database tables created successfully
+2026-02-16 14:55:05,328 - app - ERROR - Health check failed: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+2026-02-16 15:01:31,950 - app - INFO - Creating database tables...
+2026-02-16 15:01:31,950 - app - INFO - Database tables created successfully
+2026-02-16 15:01:31,956 - app - INFO - Creating database tables...
+2026-02-16 15:01:31,956 - app - INFO - Creating database tables...
+2026-02-16 15:01:31,956 - app - INFO - Database tables created successfully
+2026-02-16 15:01:31,956 - app - INFO - Database tables created successfully
+2026-02-16 15:01:31,959 - app - ERROR - Error creating task: (sqlite3.OperationalError) no such table: tasks
+[SQL: INSERT INTO tasks (title, description, completed, priority, due_date, created_at, updated_at, completed_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('New Task', 'Task Description', 0, 1, None, '2026-02-16 20:01:31.959506', '2026-02-16 20:01:31.959511', None, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-02-16 15:01:31,959 - app - ERROR - Error creating task: (sqlite3.OperationalError) no such table: tasks
+[SQL: INSERT INTO tasks (title, description, completed, priority, due_date, created_at, updated_at, completed_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('New Task', 'Task Description', 0, 1, None, '2026-02-16 20:01:31.959506', '2026-02-16 20:01:31.959511', None, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-02-16 15:03:58,930 - app - INFO - Creating database tables...
+2026-02-16 15:03:58,931 - app - INFO - Database tables created successfully
+2026-02-16 15:04:42,150 - app - INFO - Creating database tables...
+2026-02-16 15:04:42,150 - app - INFO - Database tables created successfully
