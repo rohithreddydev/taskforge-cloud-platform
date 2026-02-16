@@ -24,3 +24,121 @@
 2026-02-16 11:30:50,721 - app - INFO - Redis connected successfully
 2026-02-16 11:30:50,722 - app - INFO - Creating database tables if they don't exist...
 2026-02-16 11:30:50,741 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:16:09,292 - app - INFO - Application starting up...
+2026-02-16 12:16:09,292 - app - INFO - Environment: production
+2026-02-16 12:16:09,292 - app - INFO - Debug mode: False
+2026-02-16 12:16:09,295 - app - INFO - Redis connected successfully
+2026-02-16 12:16:09,296 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 12:16:09,314 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:21:03,072 - app - INFO - Application starting up...
+2026-02-16 12:21:03,072 - app - INFO - Environment: production
+2026-02-16 12:21:03,072 - app - INFO - Debug mode: False
+2026-02-16 12:21:03,075 - app - INFO - Redis connected successfully
+2026-02-16 12:21:03,077 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 12:21:03,093 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:21:14,836 - app - ERROR - Exception on / [GET]
+Traceback (most recent call last):
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/backend/app.py", line 171, in before_request
+    app.logger.debug(f"Request: {request.method} {request.path}")
+                                 ^^^^^^^
+NameError: name 'request' is not defined
+2026-02-16 12:21:14,852 - app - ERROR - Exception on /favicon.ico [GET]
+Traceback (most recent call last):
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/backend/app.py", line 171, in before_request
+    app.logger.debug(f"Request: {request.method} {request.path}")
+                                 ^^^^^^^
+NameError: name 'request' is not defined
+2026-02-16 12:21:40,922 - app - INFO - Application starting up...
+2026-02-16 12:21:40,922 - app - INFO - Environment: production
+2026-02-16 12:21:40,922 - app - INFO - Debug mode: False
+2026-02-16 12:21:40,926 - app - INFO - Redis connected successfully
+2026-02-16 12:21:40,927 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 12:21:40,944 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:21:52,592 - app - ERROR - Exception on / [GET]
+Traceback (most recent call last):
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/backend/app.py", line 171, in before_request
+    app.logger.debug(f"Request: {request.method} {request.path}")
+                                 ^^^^^^^
+NameError: name 'request' is not defined
+2026-02-16 12:22:41,949 - app - ERROR - Exception on /health [GET]
+Traceback (most recent call last):
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/backend/app.py", line 171, in before_request
+    app.logger.debug(f"Request: {request.method} {request.path}")
+                                 ^^^^^^^
+NameError: name 'request' is not defined
+2026-02-16 12:23:07,736 - app - INFO - Application starting up...
+2026-02-16 12:23:07,737 - app - INFO - Environment: production
+2026-02-16 12:23:07,737 - app - INFO - Debug mode: False
+2026-02-16 12:23:07,740 - app - INFO - Redis connected successfully
+2026-02-16 12:23:07,741 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 12:23:07,758 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:23:12,578 - app - ERROR - Exception on /health [GET]
+Traceback (most recent call last):
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/venv/lib/python3.14/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+  File "/Users/rohithsama/Workspace/taskforge-cloud-platform/backend/app.py", line 171, in before_request
+    app.logger.debug(f"Request: {request.method} {request.path}")
+                                 ^^^^^^^
+NameError: name 'request' is not defined
+2026-02-16 12:27:17,385 - app - INFO - Application starting up...
+2026-02-16 12:27:17,385 - app - INFO - Environment: production
+2026-02-16 12:27:17,385 - app - INFO - Debug mode: False
+2026-02-16 12:27:17,389 - app - INFO - Redis connected successfully
+2026-02-16 12:27:17,390 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 12:27:17,407 - app - INFO - Database tables created/verified successfully
+2026-02-16 12:27:31,000 - app - WARNING - 404 error: /
+2026-02-16 12:28:49,298 - app - INFO - Fetching tasks
+2026-02-16 12:28:49,312 - app - INFO - Retrieved 0 tasks

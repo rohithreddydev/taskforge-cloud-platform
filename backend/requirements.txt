@@ -35,3 +35,5 @@ faker==20.1.0
 # Type checking (optional)
 mypy==1.7.0
 types-redis==4.6.0.10
+
+black>=24.3.0  # for formatting
