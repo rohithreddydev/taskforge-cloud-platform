@@ -27,6 +27,7 @@ migrate = Migrate()
 limiter = Limiter(key_func=get_remote_address)
 metrics = None
 
+
 # Database Models
 class Task(db.Model):
     """Task model for the todo application"""
