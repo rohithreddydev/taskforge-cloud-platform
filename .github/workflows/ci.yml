@@ -104,30 +104,32 @@ jobs:
         cache-dependency-path: 'frontend/package-lock.json'
     
     - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci --legacy-peer-deps
+      working-directory: frontend
+      run: npm ci
     
     - name: Run linter
-      run: |
-        cd frontend
-        npm run lint || true  # Don't fail if linting fails
+      working-directory: frontend
+      run: npm run lint || echo "Linting issues found but continuing"
     
     - name: Run tests
-      run: |
-        cd frontend
-        npm test -- --passWithNoTests --watchAll=false
+      working-directory: frontend
+      run: npm test -- --watchAll=false --ci --coverage
     
     - name: Build frontend
-      run: |
-        cd frontend
-        npm run build
+      working-directory: frontend
+      run: npm run build
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: frontend-build
         path: frontend/build/
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-coverage
+        path: frontend/coverage/
 
   security-scan:
     name: Security Scan
