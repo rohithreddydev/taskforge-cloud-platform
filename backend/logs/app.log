@@ -142,3 +142,15 @@ NameError: name 'request' is not defined
 2026-02-16 12:27:31,000 - app - WARNING - 404 error: /
 2026-02-16 12:28:49,298 - app - INFO - Fetching tasks
 2026-02-16 12:28:49,312 - app - INFO - Retrieved 0 tasks
+2026-02-16 14:10:23,333 - app - INFO - Application starting up...
+2026-02-16 14:10:23,333 - app - INFO - Environment: production
+2026-02-16 14:10:23,333 - app - INFO - Debug mode: False
+2026-02-16 14:10:23,336 - app - INFO - Redis connected successfully
+2026-02-16 14:10:23,337 - app - INFO - Creating database tables if they don't exist...
+2026-02-16 14:10:23,354 - app - INFO - Database tables created/verified successfully
+2026-02-16 14:10:31,990 - app - INFO - Fetching tasks
+2026-02-16 14:10:32,005 - app - INFO - Retrieved 0 tasks
+2026-02-16 14:10:33,001 - app - INFO - Fetching tasks
+2026-02-16 14:10:33,005 - app - INFO - Retrieved 0 tasks
+2026-02-16 14:10:33,323 - app - INFO - Fetching tasks
+2026-02-16 14:10:33,326 - app - INFO - Retrieved 0 tasks
