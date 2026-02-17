@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import App from './App.js';
+import App from './App';
 
 // Create a manual mock control object
 const mockApi = {
