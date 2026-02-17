@@ -15,12 +15,6 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
     return <Badge bg={variant}><FaFlag /> {label}</Badge>;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'No due date';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
-
   if (tasks.length === 0) {
     return (
       <Card className="text-center p-5">
@@ -64,9 +58,6 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   )}
                   <div className="d-flex gap-2">
                     {getPriorityBadge(task.priority)}
-                    <Badge bg="info">
-                      Due: {formatDate(task.due_date)}
-                    </Badge>
                   </div>
                 </div>
               </div>
@@ -90,10 +81,6 @@ const TaskList = ({ tasks, onEdit, onDelete, onToggleComplete }) => {
                   <FaTrash />
                 </Button>
               </div>
-            </div>
-            
-            <div className="mt-2 small text-muted">
-              Created: {new Date(task.created_at).toLocaleString()}
             </div>
           </Card.Body>
         </Card>

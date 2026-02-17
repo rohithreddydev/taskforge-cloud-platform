@@ -2,70 +2,13 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
-// Create a manual mock control object
-const mockApi = {
-  shouldSucceed: true,
-  shouldDelay: false,
-  tasksData: [
-    { 
-      id: 1, 
-      title: 'Test Task', 
-      description: 'Test Description', 
-      completed: false, 
-      priority: 1, 
-      created_at: new Date().toISOString() 
-    }
-  ],
-  statsData: {
-    total_tasks: 1,
-    completed_tasks: 0,
-    pending_tasks: 1,
-    completion_rate: 0,
-    priority_breakdown: { 1: 1, 2: 0, 3: 0 },
-    tasks_created_today: 1
-  }
-};
-
-// Mock the API module with a function that returns different responses based on the mockApi object
-jest.mock('./services/api', () => {
-  return {
-    get: jest.fn().mockImplementation((url) => {
-      return new Promise((resolve, reject) => {
-        // Check if we should simulate a delay
-        if (mockApi.shouldDelay) {
-          setTimeout(() => {
-            if (mockApi.shouldSucceed) {
-              if (url === '/tasks') {
-                resolve({ data: mockApi.tasksData });
-              } else if (url === '/stats') {
-                resolve({ data: mockApi.statsData });
-              } else {
-                resolve({ data: [] });
-              }
-            } else {
-              reject(new Error('Network error'));
-            }
-          }, 100);
-        } else {
-          if (mockApi.shouldSucceed) {
-            if (url === '/tasks') {
-              resolve({ data: mockApi.tasksData });
-            } else if (url === '/stats') {
-              resolve({ data: mockApi.statsData });
-            } else {
-              resolve({ data: [] });
-            }
-          } else {
-            reject(new Error('Network error'));
-          }
-        }
-      });
-    }),
-    post: jest.fn().mockResolvedValue({ data: { id: 2, title: 'New Task' } }),
-    put: jest.fn().mockResolvedValue({ data: { id: 1, title: 'Updated Task' } }),
-    delete: jest.fn().mockResolvedValue({ data: {} })
-  };
-});
+// Mock the API module with proper implementations
+jest.mock('./services/api', () => ({
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn()
+}));
 
 // Mock react-toastify
 jest.mock('react-toastify', () => ({
@@ -76,47 +19,46 @@ jest.mock('react-toastify', () => ({
   ToastContainer: () => null
 }));
 
-// Mock console.error to avoid noise in tests
-const originalConsoleError = console.error;
-const originalConsoleLog = console.log;
-
-beforeAll(() => {
-  console.error = jest.fn();
-  console.log = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalConsoleError;
-  console.log = originalConsoleLog;
-});
+// Import the mocked api
+const api = require('./services/api');
 
 describe('App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset mockApi to default values
-    mockApi.shouldSucceed = true;
-    mockApi.shouldDelay = false;
-    mockApi.tasksData = [
-      { 
-        id: 1, 
-        title: 'Test Task', 
-        description: 'Test Description', 
-        completed: false, 
-        priority: 1, 
-        created_at: new Date().toISOString() 
-      }
-    ];
-    mockApi.statsData = {
-      total_tasks: 1,
-      completed_tasks: 0,
-      pending_tasks: 1,
-      completion_rate: 0,
-      priority_breakdown: { 1: 1, 2: 0, 3: 0 },
-      tasks_created_today: 1
-    };
   });
 
   test('renders without crashing', async () => {
+    // Mock successful API responses
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ 
+          data: [
+            { 
+              id: 1, 
+              title: 'Test Task', 
+              description: 'Test Description', 
+              completed: false, 
+              priority: 1, 
+              created_at: new Date().toISOString() 
+            }
+          ] 
+        });
+      }
+      if (url === '/stats') {
+        return Promise.resolve({ 
+          data: {
+            total_tasks: 1,
+            completed_tasks: 0,
+            pending_tasks: 1,
+            completion_rate: 0,
+            priority_breakdown: { 1: 1, 2: 0, 3: 0 },
+            tasks_created_today: 1
+          }
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
     // Wait for loading to complete
@@ -124,27 +66,52 @@ describe('App Component', () => {
       expect(screen.queryByText('Loading tasks...')).not.toBeInTheDocument();
     });
     
-    // Use getAllByText since there are multiple elements with "Task Manager"
-    const titleElements = screen.getAllByText(/Task Manager/i);
-    expect(titleElements.length).toBeGreaterThan(0);
+    // Check that the app rendered
+    expect(screen.getByText('Task Manager')).toBeInTheDocument();
   });
 
   test('displays loading spinner initially', async () => {
-    // Set delay to ensure loading state is visible
-    mockApi.shouldDelay = true;
+    // Create a promise that we can resolve later
+    let resolvePromise;
+    const promise = new Promise(resolve => { resolvePromise = resolve; });
+    
+    api.get.mockImplementation(() => promise);
     
     render(<App />);
     
     // Loading spinner should be visible immediately
     expect(screen.getByText('Loading tasks...')).toBeInTheDocument();
     
+    // Resolve the promise
+    resolvePromise({ data: [] });
+    
     // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByText('Loading tasks...')).not.toBeInTheDocument();
-    }, { timeout: 2000 });
+    });
   });
 
   test('displays task form', async () => {
+    // Mock successful API responses
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/stats') {
+        return Promise.resolve({ 
+          data: {
+            total_tasks: 0,
+            completed_tasks: 0,
+            pending_tasks: 0,
+            completion_rate: 0,
+            priority_breakdown: {},
+            tasks_created_today: 0
+          }
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
     // Wait for loading to complete
@@ -157,8 +124,8 @@ describe('App Component', () => {
   });
 
   test('handles API errors gracefully', async () => {
-    // Set mock to return error
-    mockApi.shouldSucceed = false;
+    // Mock API to reject
+    api.get.mockRejectedValue(new Error('Network error'));
     
     render(<App />);
     
@@ -169,6 +136,37 @@ describe('App Component', () => {
   });
 
   test('loads and displays tasks', async () => {
+    // Mock successful API responses
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ 
+          data: [
+            { 
+              id: 1, 
+              title: 'Test Task', 
+              description: 'Test Description', 
+              completed: false, 
+              priority: 1, 
+              created_at: new Date().toISOString() 
+            }
+          ] 
+        });
+      }
+      if (url === '/stats') {
+        return Promise.resolve({ 
+          data: {
+            total_tasks: 1,
+            completed_tasks: 0,
+            pending_tasks: 1,
+            completion_rate: 0,
+            priority_breakdown: { 1: 1, 2: 0, 3: 0 },
+            tasks_created_today: 1
+          }
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
     // Wait for tasks to load
@@ -182,6 +180,37 @@ describe('App Component', () => {
   });
 
   test('displays statistics', async () => {
+    // Mock successful API responses
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ 
+          data: [
+            { 
+              id: 1, 
+              title: 'Test Task', 
+              description: 'Test Description', 
+              completed: false, 
+              priority: 1, 
+              created_at: new Date().toISOString() 
+            }
+          ] 
+        });
+      }
+      if (url === '/stats') {
+        return Promise.resolve({ 
+          data: {
+            total_tasks: 1,
+            completed_tasks: 0,
+            pending_tasks: 1,
+            completion_rate: 0,
+            priority_breakdown: { 1: 1, 2: 0, 3: 0 },
+            tasks_created_today: 1
+          }
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
     // Wait for stats to load
@@ -189,16 +218,42 @@ describe('App Component', () => {
       expect(screen.getByText('Total Tasks')).toBeInTheDocument();
     });
     
-    expect(screen.getByText('1')).toBeInTheDocument(); // Total tasks count
+    // Check specific elements instead of just "1"
+    expect(screen.getByText('Total Tasks')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
     expect(screen.getByText('Today')).toBeInTheDocument();
+    
+    // Check the values - use getAllByText and check count or use more specific selectors
+    const totalTasksValue = screen.getByText('Total Tasks').nextElementSibling;
+    expect(totalTasksValue).toHaveTextContent('1');
+    
+    // Or check that there are 3 elements with "1" (Total, Pending, Today)
+    const ones = screen.getAllByText('1');
+    expect(ones.length).toBe(3);
   });
 
   test('displays empty state when no tasks', async () => {
-    // Override tasks data to be empty
-    mockApi.tasksData = [];
-    
+    // Mock successful API responses with empty tasks
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/stats') {
+        return Promise.resolve({ 
+          data: {
+            total_tasks: 0,
+            completed_tasks: 0,
+            pending_tasks: 0,
+            completion_rate: 0,
+            priority_breakdown: {},
+            tasks_created_today: 0
+          }
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
     // Wait for loading to complete
@@ -212,12 +267,31 @@ describe('App Component', () => {
   });
 
   test('handles stats API error gracefully', async () => {
-    // Mock stats to fail but tasks to succeed
-    mockApi.statsData = null;
-    
+    // Mock tasks success but stats failure
+    api.get.mockImplementation((url) => {
+      if (url === '/tasks') {
+        return Promise.resolve({ 
+          data: [
+            { 
+              id: 1, 
+              title: 'Test Task', 
+              description: 'Test Description', 
+              completed: false, 
+              priority: 1, 
+              created_at: new Date().toISOString() 
+            }
+          ] 
+        });
+      }
+      if (url === '/stats') {
+        return Promise.reject(new Error('Stats error'));
+      }
+      return Promise.resolve({ data: [] });
+    });
+
     render(<App />);
     
-    // Wait for tasks to load
+    // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByText('Loading tasks...')).not.toBeInTheDocument();
     });
@@ -225,7 +299,7 @@ describe('App Component', () => {
     // Tasks should still display
     expect(screen.getByText('Test Task')).toBeInTheDocument();
     
-    // Stats should not be displayed (but no error shown to user)
+    // Stats should not be displayed
     expect(screen.queryByText('Total Tasks')).not.toBeInTheDocument();
   });
 });

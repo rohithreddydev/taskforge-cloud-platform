@@ -50,10 +50,8 @@ function App() {
         setStats(response.data);
       }
     } catch (err) {
-      // Only log in development, don't show to user
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Stats fetch failed');
-      }
+      // Silently fail for stats - don't show error to user
+      console.log('Stats fetch failed');
     }
   };
 
