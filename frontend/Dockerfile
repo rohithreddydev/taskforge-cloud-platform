@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -24,12 +24,10 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create non-root user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S -D -H -u 1001 -h /usr/share/nginx/html -g nginx nginx && \
-    chown -R nginx:nginx /usr/share/nginx/html
+# Nginx already runs as non-root user in alpine image
+# The nginx user and group already exist, so we don't need to create them
 
-# Switch to non-root user
+# Switch to nginx user (already exists)
 USER nginx
 
 # Health check
