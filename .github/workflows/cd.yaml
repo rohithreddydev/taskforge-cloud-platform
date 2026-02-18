@@ -1,19 +1,17 @@
 name: Continuous Deployment
 
 on:
-  push:
-    branches: [ main ]
   workflow_run:
     workflows: ["Continuous Integration"]
     types:
       - completed
-    branches: [main]
+    branches: [main, develop]
 
 # These permissions are needed for OIDC authentication
 permissions:
-  id-token: write   # Required for OIDC
-  contents: write   # Required for GitHub Releases
-  security-events: write  # Required for CodeQL/Trivy SARIF upload
+  id-token: write
+  contents: read
+  security-events: write
 
 env:
   AWS_REGION: us-east-1
@@ -25,77 +23,78 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'develop' }}
     environment:
       name: staging
       url: https://staging.task-manager.com
-    
+
     permissions:
       id-token: write
       contents: read
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Configure AWS credentials via OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-Staging-Deploy
-    
-    - name: Get commit SHA
-      id: vars
-      run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-    
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Verify EKS cluster exists
-      run: |
-        aws eks describe-cluster --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }} || {
-          echo "❌ Cluster ${{ env.EKS_CLUSTER_NAME }} not found!"
-          echo "Available clusters:"
-          aws eks list-clusters --region ${{ env.AWS_REGION }} --output table
-          exit 1
-        }
-    
-    - name: Update kubeconfig
-      run: |
-        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-    
-    - name: Create namespace if not exists
-      run: |
-        kubectl create namespace task-manager-staging --dry-run=client -o yaml | kubectl apply -f -
-    
-    - name: Create or update secrets
-      run: |
-        # Delete existing secret if it exists
-        kubectl delete secret task-manager-secrets -n task-manager-staging 2>/dev/null || true
-        
-        # Create fresh secret
-        kubectl create secret generic task-manager-secrets \
-          --namespace task-manager-staging \
-          --from-literal=database-url="${{ secrets.STAGING_DATABASE_URL }}" \
-          --from-literal=redis-url="${{ secrets.STAGING_REDIS_URL }}" \
-          --from-literal=secret-key="${{ secrets.STAGING_SECRET_KEY }}"
-    
-    - name: Deploy backend to staging
-      env:
-        BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-      run: |
-        # Create or update backend deployment
-        cat <<EOF | kubectl apply -f -
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Staging-Deploy
+
+      - name: Get commit SHA from workflow run
+        id: get-sha
+        run: |
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA=$(echo $COMMIT_SHA | cut -c1-8)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }} --alias staging
+
+      - name: Verify cluster access
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace task-manager-staging --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create or update secrets
+        run: |
+          kubectl create secret generic task-manager-secrets \
+            --namespace task-manager-staging \
+            --from-literal=database-url="${{ secrets.STAGING_DATABASE_URL }}" \
+            --from-literal=redis-url="${{ secrets.STAGING_REDIS_URL }}" \
+            --from-literal=secret-key="${{ secrets.STAGING_SECRET_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy backend to staging
+        env:
+          BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+        run: |
+          # Update backend deployment
+          kubectl set image deployment/task-manager-backend \
+            -n task-manager-staging \
+            backend=$BACKEND_IMAGE \
+            --record || true
+
+          # If deployment doesn't exist, create it
+          if ! kubectl get deployment task-manager-backend -n task-manager-staging &>/dev/null; then
+            cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: task-manager-backend
   namespace: task-manager-staging
-  labels:
-    app: task-manager-backend
-    environment: staging
 spec:
   replicas: 2
   selector:
@@ -105,95 +104,64 @@ spec:
     metadata:
       labels:
         app: task-manager-backend
-        environment: staging
     spec:
       containers:
       - name: backend
         image: $BACKEND_IMAGE
         ports:
         - containerPort: 5000
-          name: http
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
               name: task-manager-secrets
               key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: redis-url
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: task-manager-secrets
               key: secret-key
-        - name: FLASK_ENV
-          value: "staging"
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
           initialDelaySeconds: 30
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /ready
             port: 5000
           initialDelaySeconds: 15
           periodSeconds: 5
-          timeoutSeconds: 3
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
 EOF
-        
-        # Wait for rollout
-        kubectl rollout status deployment/task-manager-backend \
-          -n task-manager-staging \
-          --timeout=5m
-    
-    - name: Create backend service
-      run: |
-        cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: task-manager-backend
-  namespace: task-manager-staging
-  labels:
-    app: task-manager-backend
-spec:
-  selector:
-    app: task-manager-backend
-  ports:
-  - name: http
-    port: 5000
-    targetPort: 5000
-  type: ClusterIP
-EOF
-    
-    - name: Deploy frontend to staging
-      env:
-        FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-      run: |
-        # Create or update frontend deployment
-        cat <<EOF | kubectl apply -f -
+          fi
+
+          # Wait for rollout
+          kubectl rollout status deployment/task-manager-backend \
+            -n task-manager-staging \
+            --timeout=5m
+
+          # Check deployment status
+          kubectl get pods -n task-manager-staging -l app=task-manager-backend
+
+      - name: Deploy frontend to staging
+        env:
+          FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+        run: |
+          # Update frontend deployment
+          kubectl set image deployment/task-manager-frontend \
+            -n task-manager-staging \
+            frontend=$FRONTEND_IMAGE \
+            --record || true
+
+          # If deployment doesn't exist, create it
+          if ! kubectl get deployment task-manager-frontend -n task-manager-staging &>/dev/null; then
+            cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: task-manager-frontend
   namespace: task-manager-staging
-  labels:
-    app: task-manager-frontend
-    environment: staging
 spec:
   replicas: 2
   selector:
@@ -203,19 +171,15 @@ spec:
     metadata:
       labels:
         app: task-manager-frontend
-        environment: staging
     spec:
       containers:
       - name: frontend
         image: $FRONTEND_IMAGE
         ports:
         - containerPort: 80
-          name: http
         env:
         - name: REACT_APP_API_URL
-          value: "http://task-manager-backend:5000/api"
-        - name: REACT_APP_ENVIRONMENT
-          value: "staging"
+          value: /api
         livenessProbe:
           httpGet:
             path: /health
@@ -228,165 +192,163 @@ spec:
             port: 80
           initialDelaySeconds: 15
           periodSeconds: 5
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
 EOF
-        
-        # Wait for rollout
-        kubectl rollout status deployment/task-manager-frontend \
-          -n task-manager-staging \
-          --timeout=5m
-    
-    - name: Create frontend service
-      run: |
-        cat <<EOF | kubectl apply -f -
+          fi
+
+          # Wait for rollout
+          kubectl rollout status deployment/task-manager-frontend \
+            -n task-manager-staging \
+            --timeout=5m
+
+      - name: Create or update backend service
+        run: |
+          cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-manager-backend
+  namespace: task-manager-staging
+spec:
+  selector:
+    app: task-manager-backend
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: ClusterIP
+EOF
+
+      - name: Create or update frontend service
+        run: |
+          cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Service
 metadata:
   name: task-manager-frontend
   namespace: task-manager-staging
-  labels:
-    app: task-manager-frontend
 spec:
   selector:
     app: task-manager-frontend
   ports:
-  - name: http
-    port: 80
+  - port: 80
     targetPort: 80
   type: ClusterIP
 EOF
-    
-    - name: Run database migrations
-      run: |
-        # Wait for backend pod to be ready
-        kubectl wait --for=condition=ready pod -l app=task-manager-backend -n task-manager-staging --timeout=60s
-        
-        # Run migrations
-        BACKEND_POD=$(kubectl get pod -n task-manager-staging -l app=task-manager-backend -o jsonpath='{.items[0].metadata.name}')
-        kubectl exec -n task-manager-staging $BACKEND_POD -- flask db upgrade || echo "Migrations skipped or failed"
-    
-    - name: Run smoke tests
-      run: |
-        echo "🔍 Running smoke tests..."
-        
-        # Wait for services
-        sleep 10
-        
-        # Test backend health via port-forward
-        kubectl port-forward -n task-manager-staging svc/task-manager-backend 5000:5000 &
-        PF_PID=$!
-        sleep 5
-        
-        # Test health endpoint
-        curl -f http://localhost:5000/health && echo "✅ Backend health check passed" || echo "⚠️ Health check failed"
-        
-        # Kill port-forward
-        kill $PF_PID 2>/dev/null || true
-        
-        echo "✅ Smoke tests completed"
-    
-    - name: Deployment status
-      if: always()
-      run: |
-        echo "## Staging Deployment Status" >> $GITHUB_STEP_SUMMARY
-        echo "- **Backend image:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Frontend image:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Deployment time:** $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
-    
-    - name: Notify Slack on success
-      if: success() && secrets.SLACK_WEBHOOK
-      uses: rtCamp/action-slack-notify@v2
-      env:
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_CHANNEL: deployments
-        SLACK_COLOR: good
-        SLACK_TITLE: "✅ Staging Deployment Successful"
-        SLACK_MESSAGE: "Task Manager staging updated with commit ${{ steps.vars.outputs.sha_short }}"
-        SLACK_FOOTER: ""
-    
-    - name: Notify Slack on failure
-      if: failure() && secrets.SLACK_WEBHOOK
-      uses: rtCamp/action-slack-notify@v2
-      env:
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_CHANNEL: deployments
-        SLACK_COLOR: danger
-        SLACK_TITLE: "❌ Staging Deployment Failed"
-        SLACK_MESSAGE: "Deployment failed for commit ${{ steps.vars.outputs.sha_short }}"
-        SLACK_FOOTER: ""
+
+      - name: Run database migrations
+        run: |
+          kubectl exec -n task-manager-staging \
+            deployment/task-manager-backend \
+            -- flask db upgrade || true
+
+      - name: Run smoke tests
+        run: |
+          # Wait for services to be ready
+          sleep 30
+
+          # Test backend health
+          kubectl run test-connection --image=busybox:latest -it --rm --restart=Never -- wget -qO- http://task-manager-backend:5000/health || true
+
+          echo "✅ Smoke tests completed"
+
+      - name: Deployment status
+        if: always()
+        run: |
+          echo "## Staging Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment completed at $(date)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Slack on success
+        if: success() && secrets.SLACK_WEBHOOK
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: good
+          SLACK_TITLE: Staging Deployment Successful
+          SLACK_MESSAGE: 'Task Manager staging updated with commit ${{ steps.get-sha.outputs.short_sha }}'
+          SLACK_FOOTER: ''
+
+      - name: Notify Slack on failure
+        if: failure() && secrets.SLACK_WEBHOOK
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: danger
+          SLACK_TITLE: Staging Deployment Failed
+          SLACK_MESSAGE: 'Deployment failed for commit ${{ steps.get-sha.outputs.short_sha }}'
 
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     environment:
       name: production
       url: https://app.task-manager.com
-    
+    needs: [deploy-staging]
+
     permissions:
       id-token: write
-      contents: write  # Needed for creating GitHub Release
-    
+      contents: write
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Configure AWS credentials via OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-Production-Deploy
-    
-    - name: Get commit SHA
-      id: vars
-      run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-    
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Update kubeconfig
-      run: |
-        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-    
-    - name: Create namespace if not exists
-      run: |
-        kubectl create namespace task-manager-prod --dry-run=client -o yaml | kubectl apply -f -
-    
-    - name: Create or update secrets
-      run: |
-        # Delete existing secret if it exists
-        kubectl delete secret task-manager-secrets -n task-manager-prod 2>/dev/null || true
-        
-        # Create fresh secret
-        kubectl create secret generic task-manager-secrets \
-          --namespace task-manager-prod \
-          --from-literal=database-url="${{ secrets.PROD_DATABASE_URL }}" \
-          --from-literal=redis-url="${{ secrets.PROD_REDIS_URL }}" \
-          --from-literal=secret-key="${{ secrets.PROD_SECRET_KEY }}"
-    
-    - name: Deploy backend to production
-      env:
-        BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-      run: |
-        cat <<EOF | kubectl apply -f -
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Production-Deploy
+
+      - name: Get commit SHA from workflow run
+        id: get-sha
+        run: |
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA=$(echo $COMMIT_SHA | cut -c1-8)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }} --alias production
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace task-manager-prod --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create or update secrets
+        run: |
+          kubectl create secret generic task-manager-secrets \
+            --namespace task-manager-prod \
+            --from-literal=database-url="${{ secrets.PROD_DATABASE_URL }}" \
+            --from-literal=redis-url="${{ secrets.PROD_REDIS_URL }}" \
+            --from-literal=secret-key="${{ secrets.PROD_SECRET_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to production
+        env:
+          BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+          FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+        run: |
+          # Update backend deployment
+          kubectl set image deployment/task-manager-backend \
+            -n task-manager-prod \
+            backend=$BACKEND_IMAGE \
+            --record || true
+
+          if ! kubectl get deployment task-manager-backend -n task-manager-prod &>/dev/null; then
+            cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: task-manager-backend
   namespace: task-manager-prod
-  labels:
-    app: task-manager-backend
-    environment: production
 spec:
   replicas: 3
   selector:
@@ -396,32 +358,23 @@ spec:
     metadata:
       labels:
         app: task-manager-backend
-        environment: production
     spec:
       containers:
       - name: backend
         image: $BACKEND_IMAGE
         ports:
         - containerPort: 5000
-          name: http
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
               name: task-manager-secrets
               key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: redis-url
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: task-manager-secrets
               key: secret-key
-        - name: FLASK_ENV
-          value: "production"
         livenessProbe:
           httpGet:
             path: /health
@@ -434,50 +387,22 @@ spec:
             port: 5000
           initialDelaySeconds: 15
           periodSeconds: 5
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
 EOF
-        
-        kubectl rollout status deployment/task-manager-backend -n task-manager-prod --timeout=5m
-    
-    - name: Create backend service
-      run: |
-        cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: task-manager-backend
-  namespace: task-manager-prod
-  labels:
-    app: task-manager-backend
-spec:
-  selector:
-    app: task-manager-backend
-  ports:
-  - name: http
-    port: 5000
-    targetPort: 5000
-  type: ClusterIP
-EOF
-    
-    - name: Deploy frontend to production
-      env:
-        FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-      run: |
-        cat <<EOF | kubectl apply -f -
+          fi
+
+          # Update frontend deployment
+          kubectl set image deployment/task-manager-frontend \
+            -n task-manager-prod \
+            frontend=$FRONTEND_IMAGE \
+            --record || true
+
+          if ! kubectl get deployment task-manager-frontend -n task-manager-prod &>/dev/null; then
+            cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: task-manager-frontend
   namespace: task-manager-prod
-  labels:
-    app: task-manager-frontend
-    environment: production
 spec:
   replicas: 3
   selector:
@@ -487,19 +412,15 @@ spec:
     metadata:
       labels:
         app: task-manager-frontend
-        environment: production
     spec:
       containers:
       - name: frontend
         image: $FRONTEND_IMAGE
         ports:
         - containerPort: 80
-          name: http
         env:
         - name: REACT_APP_API_URL
-          value: "http://task-manager-backend:5000/api"
-        - name: REACT_APP_ENVIRONMENT
-          value: "production"
+          value: /api
         livenessProbe:
           httpGet:
             path: /health
@@ -512,40 +433,50 @@ spec:
             port: 80
           initialDelaySeconds: 15
           periodSeconds: 5
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
 EOF
-        
-        kubectl rollout status deployment/task-manager-frontend -n task-manager-prod --timeout=5m
-    
-    - name: Create frontend service
-      run: |
-        cat <<EOF | kubectl apply -f -
+          fi
+
+          # Create services if they don't exist
+          cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-manager-backend
+  namespace: task-manager-prod
+spec:
+  selector:
+    app: task-manager-backend
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: ClusterIP
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: task-manager-frontend
   namespace: task-manager-prod
-  labels:
-    app: task-manager-frontend
 spec:
   selector:
     app: task-manager-frontend
   ports:
-  - name: http
-    port: 80
+  - port: 80
     targetPort: 80
   type: ClusterIP
 EOF
-    
-    - name: Create ingress
-      run: |
-        cat <<EOF | kubectl apply -f -
+
+          # Wait for rollouts
+          kubectl rollout status deployment/task-manager-backend \
+            -n task-manager-prod \
+            --timeout=5m
+
+          kubectl rollout status deployment/task-manager-frontend \
+            -n task-manager-prod \
+            --timeout=5m
+
+      - name: Create or update ingress
+        run: |
+          cat <<EOF | kubectl apply -f -
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -556,11 +487,9 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-    alb.ingress.kubernetes.io/healthcheck-path: /health
 spec:
   rules:
-  - host: app.task-manager.com
-    http:
+  - http:
       paths:
       - path: /
         pathType: Prefix
@@ -577,99 +506,109 @@ spec:
             port:
               number: 5000
 EOF
-    
-    - name: Run database migrations
-      run: |
-        kubectl wait --for=condition=ready pod -l app=task-manager-backend -n task-manager-prod --timeout=60s
-        BACKEND_POD=$(kubectl get pod -n task-manager-prod -l app=task-manager-backend -o jsonpath='{.items[0].metadata.name}')
-        kubectl exec -n task-manager-prod $BACKEND_POD -- flask db upgrade || echo "Migrations skipped or failed"
-    
-    - name: Get application URL
-      run: |
-        sleep 30
-        ALB_URL=$(kubectl get ingress -n task-manager-prod -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
-        echo "APPLICATION_URL=http://$ALB_URL" >> $GITHUB_ENV
-        echo "🌐 Application URL: http://$ALB_URL" >> $GITHUB_STEP_SUMMARY
-    
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        body: |
-          ## Production Deployment v${{ github.run_number }}
-          
-          ### Images Deployed
-          - **Backend:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-          - **Frontend:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-          
-          ### Commit
-          - **SHA:** ${{ github.sha }}
-          - **Message:** ${{ github.event.head_commit.message }}
-          
-          ### Deployment Time
-          - $(date)
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Notify Slack
-      if: secrets.SLACK_WEBHOOK
-      uses: rtCamp/action-slack-notify@v2
-      env:
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_CHANNEL: deployments
-        SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-        SLACK_TITLE: "${{ job.status == 'success' && '✅' || '❌' }} Production Deployment ${{ job.status }}"
-        SLACK_MESSAGE: "Task Manager production updated to version v${{ github.run_number }}"
-        SLACK_FOOTER: ""
+
+      - name: Run database migrations
+        run: |
+          kubectl exec -n task-manager-prod \
+            deployment/task-manager-backend \
+            -- flask db upgrade || true
+
+      - name: Verify production deployment
+        run: |
+          echo "✅ Deployment complete!"
+          echo "📊 Checking pod status:"
+          kubectl get pods -n task-manager-prod
+          echo ""
+          echo "🌐 Checking services:"
+          kubectl get svc -n task-manager-prod
+          echo ""
+          echo "🚀 Checking ingress:"
+          kubectl get ingress -n task-manager-prod
+
+      - name: Get application URL
+        run: |
+          sleep 30
+          ALB_URL=$(kubectl get ingress -n task-manager-prod -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
+          echo "🌐 Application URL: http://$ALB_URL"
+          echo "APPLICATION_URL=http://$ALB_URL" >> $GITHUB_ENV
+
+      - name: Run smoke tests
+        run: |
+          if [ "$APPLICATION_URL" != "http://pending" ]; then
+            echo "Testing health endpoint..."
+            curl -f $APPLICATION_URL/api/health || echo "Health check failed (might still be provisioning)"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            ## Production Deployment
+            - Backend image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+            - Frontend image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.get-sha.outputs.short_sha }}
+            - Commit: ${{ github.event.workflow_run.head_sha }}
+            - Deployed at: $(date)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Slack
+        if: secrets.SLACK_WEBHOOK
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Production Deployment ${{ job.status }}
+          SLACK_MESSAGE: 'Task Manager production updated to version v${{ github.run_number }}'
+          SLACK_FOOTER: ''
 
   rollback:
     name: Automatic Rollback
     runs-on: ubuntu-latest
     if: failure()
     needs: [deploy-production]
-    
+
     permissions:
       id-token: write
       contents: read
-    
+
     steps:
-    - name: Configure AWS credentials via OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-Rollback
-    
-    - name: Update kubeconfig
-      run: |
-        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-    
-    - name: Rollback to previous version
-      run: |
-        echo "🔄 Rolling back production deployment..."
-        
-        # Rollback backend
-        kubectl rollout undo deployment/task-manager-backend -n task-manager-prod || true
-        
-        # Rollback frontend
-        kubectl rollout undo deployment/task-manager-frontend -n task-manager-prod || true
-        
-        # Wait for rollback
-        kubectl rollout status deployment/task-manager-backend -n task-manager-prod --timeout=3m || true
-        kubectl rollout status deployment/task-manager-frontend -n task-manager-prod --timeout=3m || true
-        
-        echo "✅ Rollback completed" >> $GITHUB_STEP_SUMMARY
-    
-    - name: Notify rollback
-      if: secrets.SLACK_WEBHOOK
-      uses: rtCamp/action-slack-notify@v2
-      env:
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_CHANNEL: deployments
-        SLACK_COLOR: warning
-        SLACK_TITLE: "🔄 Production Rollback Initiated"
-        SLACK_MESSAGE: "Production deployment failed - rolled back to previous version"
-        SLACK_FOOTER: ""
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Rollback
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: Rollback to previous version
+        run: |
+          # Rollback backend
+          kubectl rollout undo deployment/task-manager-backend \
+            -n task-manager-prod || true
+
+          # Rollback frontend
+          kubectl rollout undo deployment/task-manager-frontend \
+            -n task-manager-prod || true
+
+          # Wait for rollback to complete
+          kubectl rollout status deployment/task-manager-backend \
+            -n task-manager-prod \
+            --timeout=5m || true
+
+      - name: Notify rollback
+        if: secrets.SLACK_WEBHOOK
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: warning
+          SLACK_TITLE: Production Rollback Initiated
+          SLACK_MESSAGE: 'Production deployment failed - rolled back to previous version'

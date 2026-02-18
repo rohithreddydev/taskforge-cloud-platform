@@ -26,7 +26,7 @@ terraform {
 
   # Backend configuration - store state in S3
   backend "s3" {
-    bucket         = "taskforge-terraform-state-1771362137"
+    bucket         = "taskforge-terraform-state-1771420687"
     key            = "eks/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
