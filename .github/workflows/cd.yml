@@ -10,7 +10,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER_NAME: task-manager-eks
+  EKS_CLUSTER_NAME: task-manager-eks-2shk61
   ECR_BACKEND_REPOSITORY: task-manager-backend
   ECR_FRONTEND_REPOSITORY: task-manager-frontend
 
