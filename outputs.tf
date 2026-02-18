@@ -27,18 +27,7 @@ output "database_endpoint" {
 
 output "database_password" {
   description = "RDS PostgreSQL password"
-  value       = random_password.db_password.result
-  sensitive   = true
-}
-
-output "database_name" {
-  description = "RDS database name"
-  value       = aws_db_instance.postgres.db_name
-}
-
-output "database_username" {
-  description = "RDS master username"
-  value       = aws_db_instance.postgres.username
+  value       = random_word.db_password.result
   sensitive   = true
 }
 
@@ -47,24 +36,7 @@ output "configure_kubectl" {
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.main.name}"
 }
 
-# Security group outputs (if needed)
-output "cluster_security_group_id" {
-  description = "Security group ID attached to the EKS cluster"
-  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
-}
-
-# VPC outputs
 output "vpc_id" {
   description = "VPC ID"
   value       = module.vpc.vpc_id
-}
-
-output "private_subnet_ids" {
-  description = "Private subnet IDs"
-  value       = module.vpc.private_subnets
-}
-
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = module.vpc.public_subnets
 }

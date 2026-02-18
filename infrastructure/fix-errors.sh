@@ -1,3 +1,13 @@
+#!/bin/bash
+
+echo "🔧 Fixing Terraform errors..."
+
+# Fix user_data.sh - remove cluster_id reference
+sed -i '' '/cluster_id/d' user_data.sh 2>/dev/null || true
+echo "✅ Fixed user_data.sh"
+
+# Create minimal outputs.tf
+cat > outputs.tf << 'EOF'
 output "cluster_endpoint" {
   description = "EKS cluster endpoint"
   value       = aws_eks_cluster.main.endpoint
@@ -27,18 +37,7 @@ output "database_endpoint" {
 
 output "database_password" {
   description = "RDS PostgreSQL password"
-  value       = random_password.db_password.result
-  sensitive   = true
-}
-
-output "database_name" {
-  description = "RDS database name"
-  value       = aws_db_instance.postgres.db_name
-}
-
-output "database_username" {
-  description = "RDS master username"
-  value       = aws_db_instance.postgres.username
+  value       = random_word.db_password.result
   sensitive   = true
 }
 
@@ -47,24 +46,19 @@ output "configure_kubectl" {
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.main.name}"
 }
 
-# Security group outputs (if needed)
-output "cluster_security_group_id" {
-  description = "Security group ID attached to the EKS cluster"
-  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
-}
-
-# VPC outputs
 output "vpc_id" {
   description = "VPC ID"
   value       = module.vpc.vpc_id
 }
+EOF
+echo "✅ Updated outputs.tf"
 
-output "private_subnet_ids" {
-  description = "Private subnet IDs"
-  value       = module.vpc.private_subnets
-}
+# Fix launch template in main.tf
+sed -i '' '/cluster_id/d' main.tf
+echo "✅ Fixed main.tf"
 
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = module.vpc.public_subnets
-}
+# Validate
+terraform fmt
+terraform validate
+
+echo "✅ All fixes applied! Run 'terraform plan' now."

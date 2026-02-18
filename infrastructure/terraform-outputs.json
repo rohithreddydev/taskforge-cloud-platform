@@ -1,0 +1,90 @@
+{
+  "cluster_endpoint": {
+    "sensitive": true,
+    "type": "string",
+    "value": "https://276520BA5234705C3D1FF82A3E97D699.gr7.us-east-1.eks.amazonaws.com"
+  },
+  "cluster_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "task-manager-eks-dddnob"
+  },
+  "cluster_security_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sg-00d90c07fe645e57d"
+  },
+  "configure_kubectl": {
+    "sensitive": false,
+    "type": "string",
+    "value": "aws eks update-kubeconfig --region us-east-1 --name task-manager-eks-dddnob"
+  },
+  "database_endpoint": {
+    "sensitive": true,
+    "type": "string",
+    "value": "task-manager-db-dddnob.cs30wcyaq22y.us-east-1.rds.amazonaws.com"
+  },
+  "database_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "taskdb"
+  },
+  "database_password": {
+    "sensitive": true,
+    "type": "string",
+    "value": "a6o20Tc64HarluuD"
+  },
+  "database_username": {
+    "sensitive": true,
+    "type": "string",
+    "value": "postgres"
+  },
+  "ecr_backend_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "998948478357.dkr.ecr.us-east-1.amazonaws.com/task-manager-backend"
+  },
+  "ecr_frontend_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "998948478357.dkr.ecr.us-east-1.amazonaws.com/task-manager-frontend"
+  },
+  "github_actions_role_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:iam::998948478357:role/GitHubActionsEKSDeployRole-prod"
+  },
+  "private_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-007ab8e3c63b14013",
+      "subnet-06319e89eda58f529"
+    ]
+  },
+  "public_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-0f370b2373e8d8a89",
+      "subnet-07fe1a137c2903ce9"
+    ]
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-03eb6be2533e1f27b"
+  }
+}
