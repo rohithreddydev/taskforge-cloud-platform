@@ -10,7 +10,6 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER_NAME: task-manager-eks-2shk61
   ECR_BACKEND_REPOSITORY: task-manager-backend
   ECR_FRONTEND_REPOSITORY: task-manager-frontend
 
@@ -38,6 +37,26 @@ jobs:
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Get EKS cluster name
+        id: cluster
+        run: |
+          CLUSTER_NAME=$(aws eks list-clusters --region ${{ env.AWS_REGION }} --query "clusters[0]" --output text)
+          echo "name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+          echo "✅ Found cluster: $CLUSTER_NAME"
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.name }}
+          echo "✅ kubeconfig updated"
+
+      - name: Verify cluster access
+        run: |
+          kubectl get nodes || {
+            echo "❌ Cannot access cluster. Check aws-auth ConfigMap"
+            exit 1
+          }
+          echo "✅ Successfully connected to cluster"
+
       - name: Build and push backend
         run: |
           cd backend
@@ -54,14 +73,11 @@ jobs:
           docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:latest
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:latest
 
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-
       - name: Create namespace
         run: |
           kubectl create namespace task-manager --dry-run=client -o yaml | kubectl apply -f -
           kubectl create namespace task-manager-staging --dry-run=client -o yaml | kubectl apply -f -
+          echo "✅ Namespaces created"
 
       - name: Create secrets
         run: |
@@ -70,23 +86,15 @@ jobs:
             --from-literal=database-url="${{ secrets.DATABASE_URL }}" \
             --from-literal=secret-key="${{ secrets.SECRET_KEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
-          
-          kubectl create secret generic task-manager-secrets \
-            --namespace task-manager-staging \
-            --from-literal=database-url="${{ secrets.STAGING_DATABASE_URL }}" \
-            --from-literal=secret-key="${{ secrets.STAGING_SECRET_KEY }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy backend
         run: |
-          # Update image in backend deployment
           sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}|g" kubernetes/backend-deployment.yaml
           kubectl apply -f kubernetes/backend-deployment.yaml
           kubectl apply -f kubernetes/backend-service.yaml
 
       - name: Deploy frontend
         run: |
-          # Update image in frontend deployment
           sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}|g" kubernetes/frontend-deployment.yaml
           kubectl apply -f kubernetes/frontend-deployment.yaml
           kubectl apply -f kubernetes/frontend-service.yaml
