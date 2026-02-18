@@ -61,6 +61,7 @@ jobs:
       - name: Create namespace
         run: |
           kubectl create namespace task-manager --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace task-manager-staging --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create secrets
         run: |
@@ -69,157 +70,35 @@ jobs:
             --from-literal=database-url="${{ secrets.DATABASE_URL }}" \
             --from-literal=secret-key="${{ secrets.SECRET_KEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
+          
+          kubectl create secret generic task-manager-secrets \
+            --namespace task-manager-staging \
+            --from-literal=database-url="${{ secrets.STAGING_DATABASE_URL }}" \
+            --from-literal=secret-key="${{ secrets.STAGING_SECRET_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy backend
         run: |
-          kubectl apply -f - <<'EOF'
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: task-manager-backend
-  namespace: task-manager
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: task-manager-backend
-  template:
-    metadata:
-      labels:
-        app: task-manager-backend
-    spec:
-      containers:
-      - name: backend
-        image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-        ports:
-        - containerPort: 5000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: database-url
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: secret-key
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 5
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: task-manager-backend
-  namespace: task-manager
-spec:
-  selector:
-    app: task-manager-backend
-  ports:
-  - port: 5000
-    targetPort: 5000
-  type: ClusterIP
-EOF
+          # Update image in backend deployment
+          sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}|g" kubernetes/backend-deployment.yaml
+          kubectl apply -f kubernetes/backend-deployment.yaml
+          kubectl apply -f kubernetes/backend-service.yaml
 
       - name: Deploy frontend
         run: |
-          kubectl apply -f - <<'EOF'
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: task-manager-frontend
-  namespace: task-manager
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: task-manager-frontend
-  template:
-    metadata:
-      labels:
-        app: task-manager-frontend
-    spec:
-      containers:
-      - name: frontend
-        image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}
-        ports:
-        - containerPort: 80
-        env:
-        - name: REACT_APP_API_URL
-          value: /api
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 5
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: task-manager-frontend
-  namespace: task-manager
-spec:
-  selector:
-    app: task-manager-frontend
-  ports:
-  - port: 80
-    targetPort: 80
-  type: ClusterIP
-EOF
+          # Update image in frontend deployment
+          sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ steps.vars.outputs.sha_short }}|g" kubernetes/frontend-deployment.yaml
+          kubectl apply -f kubernetes/frontend-deployment.yaml
+          kubectl apply -f kubernetes/frontend-service.yaml
+
+      - name: Deploy ingress
+        run: |
+          kubectl apply -f kubernetes/ingress.yaml
 
       - name: Wait for deployments
         run: |
           kubectl rollout status deployment/task-manager-backend -n task-manager --timeout=5m
           kubectl rollout status deployment/task-manager-frontend -n task-manager --timeout=5m
-
-      - name: Create ingress
-        run: |
-          kubectl apply -f - <<'EOF'
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: task-manager-ingress
-  namespace: task-manager
-  annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: task-manager-frontend
-            port:
-              number: 80
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: task-manager-backend
-            port:
-              number: 5000
-EOF
 
       - name: Run database migrations
         run: |
