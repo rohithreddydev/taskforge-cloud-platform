@@ -1,0 +1,62 @@
+# Default values for task-manager
+replicaCount: 2
+
+backend:
+  image:
+    repository: your-account-id.dkr.ecr.us-east-1.amazonaws.com/task-manager-backend
+    tag: latest
+    pullPolicy: Always
+  service:
+    port: 5000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+frontend:
+  image:
+    repository: your-account-id.dkr.ecr.us-east-1.amazonaws.com/task-manager-frontend
+    tag: latest
+    pullPolicy: Always
+  service:
+    port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+database:
+  host: "your-rds-endpoint.rds.amazonaws.com"
+  port: 5432
+  name: "taskdb"
+  existingSecret: "task-manager-secrets"
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+  hosts:
+    - host: app.task-manager.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: task-manager-frontend
+              port: 80
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: task-manager-backend
+              port: 5000

@@ -6,9 +6,6 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
     "sts.amazonaws.com"
   ]
 
-  # Note: As of 2024, thumbprint is no longer required for GitHub OIDC [citation:5]
-  # AWS automatically validates the certificate using its root CA store
-
   tags = {
     Name        = "GitHub-Actions-OIDC-Provider"
     Environment = var.environment
@@ -33,8 +30,12 @@ resource "aws_iam_role" "github_actions_eks_deploy" {
             "token.actions.githubusercontent.com:aud" : "sts.amazonaws.com"
           }
           StringLike = {
-            # Restrict to your GitHub repo and main branch
-            "token.actions.githubusercontent.com:sub" : "repo:rohithreddydev/taskforge-cloud-platform:ref:refs/heads/main"
+            # Allow all branches (or specify main only)
+            "token.actions.githubusercontent.com:sub" : [
+              "repo:rohithreddydev/taskforge-cloud-platform:ref:refs/heads/main",
+              "repo:rohithreddydev/taskforge-cloud-platform:ref:refs/heads/develop",
+              "repo:rohithreddydev/taskforge-cloud-platform:pull_request"
+            ]
           }
         }
       }
@@ -59,10 +60,9 @@ resource "aws_iam_policy" "github_actions_eks_policy" {
         Effect = "Allow"
         Action = [
           "eks:DescribeCluster",
-          "eks:ListClusters",
-          "eks:AccessKubernetesApi"
+          "eks:ListClusters"
         ]
-        Resource = aws_eks_cluster.main.arn
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -70,16 +70,17 @@ resource "aws_iam_policy" "github_actions_eks_policy" {
           "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
+          "ecr:GetRepositoryPolicy",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
           "ecr:BatchGetImage",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
           "ecr:PutImage"
         ]
-        Resource = [
-          aws_ecr_repository.backend.arn,
-          aws_ecr_repository.frontend.arn
-        ]
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -104,4 +105,29 @@ resource "aws_iam_role_policy_attachment" "github_actions_eks_attach" {
 output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions_eks_deploy.arn
   description = "ARN of the IAM role for GitHub Actions"
+}
+
+# Add the role to EKS aws-auth ConfigMap
+resource "kubernetes_config_map_v1" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = aws_iam_role.github_actions_eks_deploy.arn
+        username = "github-actions"
+        groups   = ["system:masters"]
+      },
+      {
+        rolearn  = aws_iam_role.eks_node_group.arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
+      }
+    ])
+  }
+
+  depends_on = [aws_eks_cluster.main]
 }

@@ -2,27 +2,27 @@
   "cluster_endpoint": {
     "sensitive": true,
     "type": "string",
-    "value": "https://2F55938ACD9D5FEEB1680E1869EE8E5B.gr7.us-east-1.eks.amazonaws.com"
+    "value": "https://5348E752FFA9058AE80FA8ECBC713295.gr7.us-east-1.eks.amazonaws.com"
   },
   "cluster_name": {
     "sensitive": false,
     "type": "string",
-    "value": "task-manager-eks-2shk61"
+    "value": "task-manager-eks-000gwi"
   },
   "cluster_security_group_id": {
     "sensitive": false,
     "type": "string",
-    "value": "sg-09658ab46709ec5ba"
+    "value": "sg-02a00f9f484f2763a"
   },
   "configure_kubectl": {
     "sensitive": false,
     "type": "string",
-    "value": "aws eks update-kubeconfig --region us-east-1 --name task-manager-eks-2shk61"
+    "value": "aws eks update-kubeconfig --region us-east-1 --name task-manager-eks-000gwi"
   },
   "database_endpoint": {
     "sensitive": true,
     "type": "string",
-    "value": "task-manager-db-2shk61.cs30wcyaq22y.us-east-1.rds.amazonaws.com"
+    "value": "task-manager-db-000gwi.cs30wcyaq22y.us-east-1.rds.amazonaws.com"
   },
   "database_name": {
     "sensitive": false,
@@ -32,7 +32,7 @@
   "database_password": {
     "sensitive": true,
     "type": "string",
-    "value": "x6OXrQS5s6HRImMH"
+    "value": "YhSLttg6rftuNMRx"
   },
   "database_username": {
     "sensitive": true,
@@ -64,8 +64,8 @@
       ]
     ],
     "value": [
-      "subnet-05b8084370fda6a81",
-      "subnet-0fccd9512b60e2454"
+      "subnet-0444d7cbcdb636b76",
+      "subnet-0e439b42ff5bdf1ad"
     ]
   },
   "public_subnet_ids": {
@@ -78,13 +78,13 @@
       ]
     ],
     "value": [
-      "subnet-0c9262566ae449323",
-      "subnet-08ad9b692a2d2fde8"
+      "subnet-09bd8793e838f26ab",
+      "subnet-0e75394f99db948a4"
     ]
   },
   "vpc_id": {
     "sensitive": false,
     "type": "string",
-    "value": "vpc-0b797bdb3106310fa"
+    "value": "vpc-0554906f22f7ed78b"
   }
 }

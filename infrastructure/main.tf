@@ -182,33 +182,6 @@ resource "aws_iam_role_policy_attachment" "ssm_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.eks_node_group.name
 }
-# Get the current IAM role ARN
-data "aws_iam_role" "github_actions" {
-  name = "GitHubActionsEKSDeployRole-prod"
-}
-
-# Update aws-auth ConfigMap
-resource "kubernetes_config_map_v1" "aws_auth" {
-  metadata {
-    name      = "aws-auth"
-    namespace = "kube-system"
-  }
-
-  data = {
-    mapRoles = yamlencode(concat(
-      [
-        {
-          rolearn  = data.aws_iam_role.github_actions.arn
-          username = "github-actions"
-          groups   = ["system:masters"]
-        }
-      ],
-      []
-    ))
-  }
-
-  depends_on = [aws_eks_cluster.main]
-}
 
 # Security group for EKS nodes
 resource "aws_security_group" "eks_nodes" {
