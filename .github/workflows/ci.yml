@@ -145,6 +145,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Important for SonarCloud
     
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
@@ -160,18 +162,20 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
     
-    - name: Run SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    # SonarCloud Scan - Uncomment and configure if you have SonarCloud account
+    # - name: SonarCloud Scan
+    #   uses: SonarSource/sonarcloud-github-action@master
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     
-    - name: Run Snyk Security Scan
-      uses: snyk/actions/node@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        args: --severity-threshold=high
+    # Snyk Scan - Uncomment and configure if you have Snyk account
+    # - name: Snyk Security Scan
+    #   uses: snyk/actions/node@master
+    #   env:
+    #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    #   with:
+    #     args: --severity-threshold=high
 
   build-and-push:
     name: Build and Push Images
