@@ -106,33 +106,33 @@ spec:
         app: task-manager-backend
     spec:
       containers:
-      - name: backend
-        image: $BACKEND_IMAGE
-        ports:
-        - containerPort: 5000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: database-url
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: secret-key
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 5
+        - name: backend
+          image: $BACKEND_IMAGE
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-secrets
+                  key: database-url
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-secrets
+                  key: secret-key
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 5
 EOF
           fi
 
@@ -173,25 +173,25 @@ spec:
         app: task-manager-frontend
     spec:
       containers:
-      - name: frontend
-        image: $FRONTEND_IMAGE
-        ports:
-        - containerPort: 80
-        env:
-        - name: REACT_APP_API_URL
-          value: /api
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 5
+        - name: frontend
+          image: $FRONTEND_IMAGE
+          ports:
+            - containerPort: 80
+          env:
+            - name: REACT_APP_API_URL
+              value: /api
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 5
 EOF
           fi
 
@@ -212,8 +212,8 @@ spec:
   selector:
     app: task-manager-backend
   ports:
-  - port: 5000
-    targetPort: 5000
+    - port: 5000
+      targetPort: 5000
   type: ClusterIP
 EOF
 
@@ -229,8 +229,8 @@ spec:
   selector:
     app: task-manager-frontend
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: ClusterIP
 EOF
 
@@ -360,33 +360,33 @@ spec:
         app: task-manager-backend
     spec:
       containers:
-      - name: backend
-        image: $BACKEND_IMAGE
-        ports:
-        - containerPort: 5000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: database-url
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: task-manager-secrets
-              key: secret-key
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 5
+        - name: backend
+          image: $BACKEND_IMAGE
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-secrets
+                  key: database-url
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-secrets
+                  key: secret-key
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 5
 EOF
           fi
 
@@ -414,25 +414,25 @@ spec:
         app: task-manager-frontend
     spec:
       containers:
-      - name: frontend
-        image: $FRONTEND_IMAGE
-        ports:
-        - containerPort: 80
-        env:
-        - name: REACT_APP_API_URL
-          value: /api
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 5
+        - name: frontend
+          image: $FRONTEND_IMAGE
+          ports:
+            - containerPort: 80
+          env:
+            - name: REACT_APP_API_URL
+              value: /api
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 5
 EOF
           fi
 
@@ -447,8 +447,8 @@ spec:
   selector:
     app: task-manager-backend
   ports:
-  - port: 5000
-    targetPort: 5000
+    - port: 5000
+      targetPort: 5000
   type: ClusterIP
 ---
 apiVersion: v1
@@ -460,8 +460,8 @@ spec:
   selector:
     app: task-manager-frontend
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: ClusterIP
 EOF
 
@@ -489,22 +489,22 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
 spec:
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: task-manager-frontend
-            port:
-              number: 80
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: task-manager-backend
-            port:
-              number: 5000
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: task-manager-frontend
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: task-manager-backend
+                port:
+                  number: 5000
 EOF
 
       - name: Run database migrations
