@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 data:
   mapRoles: |
-    - rolearn: arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsEKSDeployRole-production
+    - rolearn: arn:aws:iam::998948478357:role/GitHubActionsEKSDeployRole-prod
       username: github-actions
       groups:
         - system:masters

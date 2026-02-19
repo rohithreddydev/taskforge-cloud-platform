@@ -96,6 +96,32 @@ module "vpc" {
   }
 }
 
+# Security Group for EKS Cluster - FIXED: Added this missing resource
+resource "aws_security_group" "cluster" {
+  name        = "task-manager-eks-cluster-sg-${random_string.suffix.result}"
+  description = "Security group for EKS cluster"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description = "HTTPS access from within VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "task-manager-eks-cluster-sg"
+  }
+}
+
 # EKS Cluster IAM Role
 resource "aws_iam_role" "eks_cluster" {
   name = "task-manager-eks-cluster-role-${random_string.suffix.result}"
@@ -123,15 +149,17 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 resource "aws_eks_cluster" "main" {
   name     = "task-manager-eks-${random_string.suffix.result}"
   role_arn = aws_iam_role.eks_cluster.arn
-  version  = "1.28" # Using stable version
 
   vpc_config {
     subnet_ids              = concat(module.vpc.private_subnets, module.vpc.public_subnets)
     endpoint_private_access = true
     endpoint_public_access  = true
     public_access_cidrs     = ["0.0.0.0/0"]
+    
+    # Security groups - FIXED: Use the cluster security group we created
+    security_group_ids = [aws_security_group.cluster.id]
   }
-
+  
   # Enable minimal logging to save costs
   enabled_cluster_log_types = ["api"] # Only enable API logs to reduce CloudWatch costs
 
@@ -141,6 +169,20 @@ resource "aws_eks_cluster" "main" {
 
   tags = {
     Name = "task-manager-eks"
+  }
+}
+
+# FIXED: Added proper cluster readiness check with correct region variable
+resource "null_resource" "wait_for_cluster" {
+  depends_on = [aws_eks_cluster.main]
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Waiting for EKS cluster to be active..."
+      aws eks wait cluster-active --name ${aws_eks_cluster.main.name} --region ${var.aws_region}
+      echo "Cluster is active. Waiting 60 seconds for API to be ready..."
+      sleep 60
+    EOT
   }
 }
 
@@ -202,7 +244,7 @@ resource "aws_security_group" "eks_nodes" {
     from_port       = 1025
     to_port         = 65535
     protocol        = "tcp"
-    security_groups = [aws_eks_cluster.main.vpc_config[0].cluster_security_group_id]
+    security_groups = [aws_security_group.cluster.id]  # FIXED: Use cluster SG
   }
 
   ingress {
@@ -230,7 +272,23 @@ data "aws_ssm_parameter" "eks_ami" {
   name = "/aws/service/eks/optimized-ami/1.28/amazon-linux-2/recommended/image_id"
 }
 
-# Launch template for node group
+# FIXED: Create user_data.sh file automatically
+resource "local_file" "user_data" {
+  content = <<-EOT
+    #!/bin/bash
+    set -ex
+    cat >> /etc/eks/bootstrap.sh << 'EOF'
+    #!/bin/bash
+    /etc/eks/bootstrap.sh ${aws_eks_cluster.main.name} \
+      --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup=task-manager-node-group,eks.amazonaws.com/sourceLaunchTemplateVersion=1'
+    EOF
+    chmod +x /etc/eks/bootstrap.sh
+    /etc/eks/bootstrap.sh ${aws_eks_cluster.main.name}
+  EOT
+  filename = "${path.module}/user_data.sh"
+}
+
+# Launch template for node group - FIXED with network interfaces
 resource "aws_launch_template" "eks_nodes" {
   name_prefix = "task-manager-node-template-"
   image_id    = data.aws_ssm_parameter.eks_ami.value
@@ -250,6 +308,12 @@ resource "aws_launch_template" "eks_nodes" {
     enabled = false
   }
 
+  # FIXED: Add network interfaces to associate security group
+  network_interfaces {
+    associate_public_ip_address = false
+    security_groups             = [aws_security_group.eks_nodes.id]
+  }
+
   tag_specifications {
     resource_type = "instance"
     tags = {
@@ -257,14 +321,18 @@ resource "aws_launch_template" "eks_nodes" {
     }
   }
 
-  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    cluster_name     = aws_eks_cluster.main.name
-    cluster_endpoint = aws_eks_cluster.main.endpoint
-    cluster_ca_cert  = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
-  }))
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Name = "task-manager-eks-node-volume"
+    }
+  }
+
+  # FIXED: Use the local file content
+  user_data = base64encode(local_file.user_data.content)
 }
 
-# EKS Node Group - Using t3.micro (Free Tier eligible)
+# EKS Node Group - Using t3.micro (Free Tier eligible) - FIXED
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "task-manager-node-group-${random_string.suffix.result}"
@@ -284,6 +352,8 @@ resource "aws_eks_node_group" "main" {
     max_unavailable = 1
   }
 
+  # FIXED: Remove remote_access when using launch_template
+  # The security group configuration is handled in the launch_template
   launch_template {
     name    = aws_launch_template.eks_nodes.name
     version = "$Latest"
@@ -293,13 +363,20 @@ resource "aws_eks_node_group" "main" {
     Name = "task-manager-node-group"
   }
 
+  # FIXED: Added all dependencies
   depends_on = [
+    null_resource.wait_for_cluster,  # Wait for cluster to be ready
     aws_iam_role_policy_attachment.eks_worker_node_policy,
     aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.ecr_read_only
+    aws_iam_role_policy_attachment.ecr_read_only,
+    aws_security_group.eks_nodes
   ]
-}
 
+  timeouts {
+    create = "30m"
+    update = "40m"
+  }
+}
 # ECR Repositories - Free tier (500MB storage included)
 resource "aws_ecr_repository" "backend" {
   name                 = "task-manager-backend"
@@ -385,7 +462,7 @@ resource "aws_db_instance" "postgres" {
 
   allocated_storage     = 20           # Free tier: 20GB
   max_allocated_storage = 0            # Disable autoscaling for free tier
-  storage_encrypted     = false        # Free tier doesn't support encryption
+  storage_encrypted     = false        # Free tier doesn't require encryption
   storage_type          = "gp2"        # gp2 is included in free tier
 
   db_name  = "taskdb"

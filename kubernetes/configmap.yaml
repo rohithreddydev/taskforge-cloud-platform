@@ -4,6 +4,11 @@ metadata:
   name: task-manager-config
   namespace: task-manager
 data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::998948478357:role/GitHubActionsEKSDeployRole-prod
+      username: github-actions
+      groups:
+        - system:masters
   # Application configuration
   FLASK_ENV: "production"
   FLASK_APP: "app.py"
@@ -14,7 +19,7 @@ data:
   CORS_ORIGINS: "https://app.task-manager.com"
   
   # Database configuration (non-sensitive)
-  DB_HOST: "task-manager-db.cluster-xxx.us-east-1.rds.amazonaws.com"
+  DB_HOST: "task-manager-db-000gwi.cs30wcyaq22y.us-east-1.rds.amazonaws.com"
   DB_PORT: "5432"
   DB_NAME: "taskdb"
   
